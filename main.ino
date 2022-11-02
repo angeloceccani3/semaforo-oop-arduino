@@ -53,8 +53,7 @@ public:
             giallo();
             break;
 
-        case 3:
-        case 4:
+        case 3 ... 4:
             rosso();
             break;
         }
@@ -68,28 +67,32 @@ public:
     }
 };
 
+#define interrupt // commentalo fuori per passare alla modalità senza interrupt
+
 #define puls 3
 volatile bool interr = 0; // necessario per utilizzare l'interrupt
-
 semaforo s1(0, 1, 2, 1);
 semaforo s2(4, 5, 6, 3);
 
 void setup()
 {
     pinMode(puls, INPUT);
-    attachInterrupt(digitalPinToInterrupt(puls), reset, RISING); // interrupt di reset
+#ifdef interrupt
+    attachInterrupt(digitalPinToInterrupt(puls), reset, RISING); // dichiarazione del pin di interrupt
+#endif
     lampeggia();
 }
+
 void loop()
 {
     s1.accendi();
     s2.accendi();
-    delay(5000);
+    checkDelay(5000);
     s1.avanza();
     s2.avanza();
     s1.accendi();
     s2.accendi();
-    delay(3000);
+    checkDelay(3000);
     s1.avanza();
     s2.avanza();
     if (interr == 1)
@@ -114,7 +117,31 @@ void lampeggia()
     s2.rFase();
 }
 
-void reset() 
+void reset()
 {
     interr = 1;
+}
+
+void checkDelay(int d)
+{
+    if (interr == 0)
+    {
+#ifdef interrupt
+        delay(d);
+#endif
+
+#ifndef interrupt
+
+        for (int i = 0; i < d; i++) // compromesso che costa 4,9 ms ogni secondo (teoricamente)
+        {
+            delay(1);
+            if (digitalRead(puls) == 1) // digital read richiede circa 4,9 us
+            {
+                interr = 1;
+                break;
+            }
+        }
+
+#endif
+    }
 }
